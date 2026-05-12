@@ -20,26 +20,28 @@ Shader "Custom/Morphing/MorphOpticalFlow"
             "RenderPipeline" = "UniversalPipeline"
         }
 
-        // Fullscreen pass blends on top of the already-rendered scene.
-        // SrcAlpha / OneMinusSrcAlpha lets the scene show through wherever
-        // both textures are transparent (finalAlpha = 0).
-        Blend SrcAlpha OneMinusSrcAlpha
+        // No GPU blending — we composite manually against _BlitTexture (scene).
+        // This is the correct pattern for a URP fullscreen render feature blit.
+        Blend Off
         Cull Off
         ZWrite Off
-        ZTest Always          // fullscreen triangle must always pass depth
+        ZTest Always
 
         Pass
         {
             Name "MorphOpticalFlow"
 
             HLSLPROGRAM
-            // Blit.hlsl provides Vert (fullscreen procedural triangle) + Varyings.
-            // This is correct for a ScriptableRenderPass / RenderGraph blit.
             #pragma vertex Vert
             #pragma fragment frag
             #pragma target 3.5
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            // Blit.hlsl provides:
+            //   - Vert()            fullscreen procedural triangle vertex shader
+            //   - Varyings          struct with texcoord
+            //   - _BlitTexture      the source camera color (scene)
+            //   - sampler_LinearClamp
             #include "Packages/com.unity.render-pipelines.core/Runtime/Utilities/Blit.hlsl"
 
             TEXTURE2D(_TexA); SAMPLER(sampler_TexA);
@@ -56,7 +58,10 @@ Shader "Custom/Morphing/MorphOpticalFlow"
             {
                 float2 uv = IN.texcoord;
 
-                // ── Drive t automatically over time ────────────────────────────
+                // ── Sample the scene (what was rendered before this pass) ──────
+                float4 scene = SAMPLE_TEXTURE2D(_BlitTexture, sampler_LinearClamp, uv);
+
+                // ── Drive t automatically over time (ping-pong) ───────────────
                 //   |← hold →|←── A→B ──→|← hold →|←── B→A ──→| repeat
                 float hold    = _HoldDuration;
                 float transit = _CycleDuration * 0.5;
@@ -64,10 +69,10 @@ Shader "Custom/Morphing/MorphOpticalFlow"
                 float localT  = fmod(_Time.y, period);
 
                 float t;
-                if      (localT < hold)                       t = 0.0;
-                else if (localT < hold + transit)             t = (localT - hold) / transit;
-                else if (localT < hold * 2.0 + transit)      t = 1.0;
-                else                                          t = 1.0 - (localT - hold * 2.0 - transit) / transit;
+                if      (localT < hold)                      t = 0.0;
+                else if (localT < hold + transit)            t = (localT - hold) / transit;
+                else if (localT < hold * 2.0 + transit)     t = 1.0;
+                else                                         t = 1.0 - (localT - hold * 2.0 - transit) / transit;
 
                 // ── Sequential two-phase transparency ─────────────────────────
                 //   t=[0,  0.5]: TexB fades IN   — TexA stays solid
@@ -80,13 +85,11 @@ Shader "Custom/Morphing/MorphOpticalFlow"
                 float alphaA = 1.0 - smoothstep(0.5 - s, 0.5 + s, tPhase2);
 
                 // ── Optical flow warp ──────────────────────────────────────────
-                // Sample raw (unwarped) to get flow direction from RG channels
                 float4 rawA  = SAMPLE_TEXTURE2D(_TexA, sampler_TexA, uv);
                 float4 rawB  = SAMPLE_TEXTURE2D(_TexB, sampler_TexB, uv);
                 float2 flowA = rawA.rg * 2.0 - 1.0;
                 float2 flowB = rawB.rg * 2.0 - 1.0;
 
-                // A warps outward as it fades; B warps inward as it arrives
                 float2 uvA = clamp(uv + flowA * (1.0 - alphaA) * _WarpStrength, 0.001, 0.999);
                 float2 uvB = clamp(uv - flowB * (1.0 - alphaB) * _WarpStrength, 0.001, 0.999);
 
@@ -94,22 +97,21 @@ Shader "Custom/Morphing/MorphOpticalFlow"
                 float4 colB = SAMPLE_TEXTURE2D(_TexB, sampler_TexB, uvB);
 
                 // ── Alpha composite (Porter-Duff "B over A") ───────────────────
-                // Scale each texture's own alpha by its phase weight so:
-                //   - A's silhouette disappears only during phase 2
-                //   - B's silhouette appears only during phase 1
-                //   - Areas transparent in both textures → finalAlpha = 0
-                //     → scene background shows through via GPU blend state
                 float texAlphaA  = colA.a * alphaA;
                 float texAlphaB  = colB.a * alphaB;
-                float finalAlpha = texAlphaB + texAlphaA * (1.0 - texAlphaB);
+                float morphAlpha = texAlphaB + texAlphaA * (1.0 - texAlphaB);
 
                 // ── RGB composite ──────────────────────────────────────────────
-                // Alpha-weighted blend so semi-transparent edge colours are correct.
-                // Divide by finalAlpha to un-pre-multiply before handing to GPU blend.
-                float3 rgb = (colA.rgb * texAlphaA + colB.rgb * texAlphaB * (1.0 - texAlphaA))
-                             / max(finalAlpha, 0.0001);
+                // Alpha-weighted morph colour (un-pre-multiplied)
+                float3 morphRGB = (colA.rgb * texAlphaA + colB.rgb * texAlphaB * (1.0 - texAlphaA))
+                                  / max(morphAlpha, 0.0001);
 
-                return half4(rgb, finalAlpha);
+                // ── Manual over-composite against the scene ────────────────────
+                // morphAlpha=0 → scene shows through fully
+                // morphAlpha=1 → morph result covers scene fully
+                float3 finalRGB = morphRGB * morphAlpha + scene.rgb * (1.0 - morphAlpha);
+
+                return half4(finalRGB, 1.0);
             }
             ENDHLSL
         }
