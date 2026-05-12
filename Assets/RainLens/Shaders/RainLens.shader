@@ -5,7 +5,7 @@ Shader "Custom/RainLens"
         [Header(Drop Layers)]
         _DropNormalMap("Drop Normal Map", 2D) = "bump" {}
 
-        [Header(Layer A - Large Drops)]
+        [Header(Layer A Large Drops)]
         _LayerACount("Count", Range(1,20)) = 8
         _LayerASpeed("Speed", Float) = 0.05
         _LayerASizeMin("Size Min", Range(0.02,0.3)) = 0.10
@@ -13,7 +13,7 @@ Shader "Custom/RainLens"
         _LayerADistort("Distortion", Range(0,0.08)) = 0.045
         _LayerALean("Max Lean", Range(0,0.5)) = 0.20
 
-        [Header(Layer B - Medium Drops)]
+        [Header(Layer B Medium Drops)]
         _LayerBCount("Count", Range(1,20)) = 12
         _LayerBSpeed("Speed", Float) = 0.10
         _LayerBSizeMin("Size Min", Range(0.01,0.2)) = 0.05
@@ -21,7 +21,7 @@ Shader "Custom/RainLens"
         _LayerBDistort("Distortion", Range(0,0.06)) = 0.025
         _LayerBLean("Max Lean", Range(0,0.5)) = 0.30
 
-        [Header(Layer C - Small Streaks)]
+        [Header(Layer C Small Streaks)]
         _LayerCCount("Count", Range(1,24)) = 16
         _LayerCSpeed("Speed", Float) = 0.22
         _LayerCSizeMin("Size Min", Range(0.005,0.1)) = 0.02
