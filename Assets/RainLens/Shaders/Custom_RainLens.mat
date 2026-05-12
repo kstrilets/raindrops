@@ -1,0 +1,63 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Custom_RainLens
+  m_Shader: {fileID: 4800000, guid: 2ef6f91d42cef35439fa04125d5061f7, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _DropNormalMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _Darken: 0.08
+    - _DissolveEnd: 0.97
+    - _DissolveStart: 0.74
+    - _GenBlend: 0.22
+    - _GenLeanJitter: 0.12
+    - _GenPosJitter: 0.022
+    - _GenRate: 1.2
+    - _GenSizeJitter: 0.18
+    - _LayerACount: 8
+    - _LayerADistort: 0.045
+    - _LayerALean: 0.2
+    - _LayerASizeMax: 0.18
+    - _LayerASizeMin: 0.1
+    - _LayerASpeed: 0.05
+    - _LayerBCount: 12
+    - _LayerBDistort: 0.025
+    - _LayerBLean: 0.3
+    - _LayerBSizeMax: 0.09
+    - _LayerBSizeMin: 0.05
+    - _LayerBSpeed: 0.1
+    - _LayerCCount: 16
+    - _LayerCDistort: 0.01
+    - _LayerCLean: 0.15
+    - _LayerCSizeMax: 0.04
+    - _LayerCSizeMin: 0.02
+    - _LayerCSpeed: 0.22
+    - _Saturation: 1.1
+    - _WetDistort: 0.003
+    - _WetSpeed: 0.12
+    m_Colors: []
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1
