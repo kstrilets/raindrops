@@ -254,7 +254,7 @@ Shader "Custom/RainLens"
                 float2 distort = wetWarp + layerA.xy + layerB.xy + layerC.xy;
                 float mask = saturate(max(layerA.z, max(layerB.z, layerC.z)));
 
-                float2 sampleUV = clamp(uv + distort, 0.0, 1.0);
+                float2 sampleUV = saturate(uv + distort);
                 half4 color = SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_LinearClamp, sampleUV);
 
                 color.rgb *= 1.0 - (_Darken * mask);

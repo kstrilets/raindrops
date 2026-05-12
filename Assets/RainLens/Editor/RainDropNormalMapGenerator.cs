@@ -30,7 +30,7 @@ public class RainDropNormalMapGenerator : EditorWindow
         const float trailLength = 0.55f;
         const float trailStrength = 0.18f;
 
-        var normalMapTexture = new Texture2D(TextureSize, TextureSize, TextureFormat.RGBA32, false, true);
+        var normalMapTexture = new Texture2D(TextureSize, TextureSize, TextureFormat.RGBA32, mipChain: false, linear: true);
         float step = 2f / (TextureSize - 1f);
 
         float Height(float x, float y)
