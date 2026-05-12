@@ -6,7 +6,7 @@ Shader "Custom/Morphing/MorphOpticalFlow"
         _TexB           ("Texture B",           2D)            = "white" {}
         _BlendT         ("Blend T",             Range(0,1))    = 0.5
         _WarpStrength   ("Warp Strength",       Range(0,0.3))  = 0.08
-        _BlendSharpness ("Blend Sharpness",     Range(0.01,1)) = 0.2
+        _BlendSharpness ("Blend Sharpness",     Range(0.01,0.49)) = 0.2
     }
 
     SubShader
@@ -40,51 +40,51 @@ Shader "Custom/Morphing/MorphOpticalFlow"
                 float2 uv = IN.texcoord;
                 float  t  = _BlendT;
 
-                // ── Sequential transparency phases ─────────────────────────────
+                // ── Sequential phases ──────────────────────────────────────────
                 //
-                // Phase 1  t = 0.0 → 0.5 :  TexB fades IN   (alphaB: 0 → 1)
-                //                            TexA stays fully visible (alphaA = 1)
+                //  t = 0.0 ──────── 0.5 ──────── 1.0
                 //
-                // Phase 2  t = 0.5 → 1.0 :  TexB fully opaque (alphaB = 1)
-                //                            TexA fades OUT  (alphaA: 1 → 0)
+                //  tPhase1:  0 ────── 1 ────────── 1   (ramps over first half only)
+                //  tPhase2:  0 ────── 0 ────────── 1   (ramps over second half only)
                 //
-                // _BlendSharpness controls softness at each phase boundary.
+                //  alphaB rises during phase 1  →  TexB fades IN,  TexA stays solid
+                //  alphaA falls during phase 2  →  TexA fades OUT, TexB stays solid
+                //
+                //  The two windows are guaranteed non-overlapping because
+                //  phase1 is fully done before phase2 begins.
 
-                float half_s = _BlendSharpness * 0.5;  // sharpness scaled to half-range
+                float tPhase1 = saturate(t * 2.0);          // 0→1 mapped to t=[0,  0.5]
+                float tPhase2 = saturate(t * 2.0 - 1.0);   // 0→1 mapped to t=[0.5,1.0]
 
-                // alphaB rises in the first half  [0, 0.5]
-                float alphaB = smoothstep(0.5 - _BlendSharpness,
-                                          0.5 + half_s, t);
+                float s = _BlendSharpness;   // max 0.49 so window stays inside [0,1]
 
-                // alphaA falls in the second half  [0.5, 1]
-                float alphaA = 1.0 - smoothstep(0.5 - half_s,
-                                                 0.5 + _BlendSharpness, t);
+                float alphaB = smoothstep(0.5 - s, 0.5 + s, tPhase1);
+                float alphaA = 1.0 - smoothstep(0.5 - s, 0.5 + s, tPhase2);
 
                 // ── Optical flow warp ──────────────────────────────────────────
-                // Sample flow from unwarped UVs first
+                // Get flow vectors from unwarped samples first
                 float4 rawA  = SAMPLE_TEXTURE2D(_TexA, sampler_TexA, uv);
                 float4 rawB  = SAMPLE_TEXTURE2D(_TexB, sampler_TexB, uv);
                 float2 flowA = rawA.rg * 2.0 - 1.0;
                 float2 flowB = rawB.rg * 2.0 - 1.0;
 
-                // A warps forward driven by how far it has faded (alphaA receding)
-                // B warps backward driven by how far it has appeared (alphaB arriving)
+                // A pushes outward as it fades (alphaA dropping → 1-alphaA rising)
+                // B pulls inward as it arrives (alphaB rising → 1-alphaB falling)
                 float2 uvA = clamp(uv + flowA * (1.0 - alphaA) * _WarpStrength, 0.001, 0.999);
                 float2 uvB = clamp(uv - flowB * (1.0 - alphaB) * _WarpStrength, 0.001, 0.999);
 
                 float4 colA = SAMPLE_TEXTURE2D(_TexA, sampler_TexA, uvA);
                 float4 colB = SAMPLE_TEXTURE2D(_TexB, sampler_TexB, uvB);
 
-                // ── Composite: B over A using sequential alphas ────────────────
-                // Both can be partially visible only in the narrow overlap window
-                // around t = 0.5. Outside that window one of them is always fully
-                // opaque so there is no double-transparency artefact.
-                float3 col = colA.rgb * alphaA + colB.rgb * alphaB * (1.0 - alphaA);
-                // Normalise so the result never goes dark when both alphas are < 1
-                float totalAlpha = saturate(alphaA + alphaB * (1.0 - alphaA));
-                col = col / max(totalAlpha, 0.001);
+                // ── Blend ──────────────────────────────────────────────────────
+                // Single blend factor derived from the two sequential alphas:
+                //   phase 1 only alphaB moves  → blend goes 0 → 0.5
+                //   phase 2 only alphaA moves  → blend goes 0.5 → 1
+                // Result: standard lerp but paced in two non-overlapping steps.
+                float blend = alphaB * 0.5 + (1.0 - alphaA) * 0.5;
 
-                return half4(col, 1.0);
+                float4 col = lerp(colA, colB, blend);
+                return half4(col.rgb, 1.0);
             }
             ENDHLSL
         }
