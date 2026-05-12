@@ -30,7 +30,7 @@ public class RainDropNormalMapGenerator : EditorWindow
         const float trailLength = 0.55f;
         const float trailStrength = 0.18f;
 
-        var texture = new Texture2D(TextureSize, TextureSize, TextureFormat.RGBA32, false, true);
+        var normalMapTexture = new Texture2D(TextureSize, TextureSize, TextureFormat.RGBA32, false, true);
         float step = 2f / (TextureSize - 1f);
 
         float Height(float x, float y)
@@ -84,17 +84,17 @@ public class RainDropNormalMapGenerator : EditorWindow
                 float b = Mathf.Clamp01(bodyMask + trailMask);
                 float a = trailMask;
 
-                texture.SetPixel(xIndex, yIndex, new Color(normalX, normalY, b, a));
+                normalMapTexture.SetPixel(xIndex, yIndex, new Color(normalX, normalY, b, a));
             }
         }
 
-        texture.Apply(false, false);
+        normalMapTexture.Apply(false, false);
 
         string absoluteDirectory = Path.Combine(Directory.GetCurrentDirectory(), OutputTextureDirectory);
         Directory.CreateDirectory(absoluteDirectory);
 
-        File.WriteAllBytes(OutputTexturePath, texture.EncodeToPNG());
-        Object.DestroyImmediate(texture);
+        File.WriteAllBytes(OutputTexturePath, normalMapTexture.EncodeToPNG());
+        Object.DestroyImmediate(normalMapTexture);
 
         AssetDatabase.ImportAsset(OutputTexturePath, ImportAssetOptions.ForceUpdate);
         var importer = AssetImporter.GetAtPath(OutputTexturePath) as TextureImporter;

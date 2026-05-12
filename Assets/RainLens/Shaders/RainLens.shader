@@ -107,6 +107,9 @@ Shader "Custom/RainLens"
 
             static const float DROP_CULLING_RADIUS_MULTIPLIER = 1.8;
             static const float TRAIL_MASK_WEIGHT = 0.4;
+            static const float LAYER_B_SEED = 31.7;
+            static const float LAYER_C_SEED = 67.3;
+            static const int MAX_DROP_COUNT = 24;
 
             float Hash11(float p)
             {
@@ -195,7 +198,7 @@ Shader "Custom/RainLens"
                 float maxMask = 0.0;
 
                 [loop]
-                for (int i = 0; i < 24; i++)
+                for (int i = 0; i < MAX_DROP_COUNT; i++)
                 {
                     if (i >= (int)count)
                     {
@@ -245,8 +248,8 @@ Shader "Custom/RainLens"
                 float2 wetWarp = NoiseGrad(wetNoiseUV) * _WetDistort;
 
                 float3 layerA = EvaluateLayer(uv, _LayerACount, _LayerASpeed, _LayerASizeMin, _LayerASizeMax, _LayerADistort, _LayerALean, 0.0, aspect);
-                float3 layerB = EvaluateLayer(uv, _LayerBCount, _LayerBSpeed, _LayerBSizeMin, _LayerBSizeMax, _LayerBDistort, _LayerBLean, 31.7, aspect);
-                float3 layerC = EvaluateLayer(uv, _LayerCCount, _LayerCSpeed, _LayerCSizeMin, _LayerCSizeMax, _LayerCDistort, _LayerCLean, 67.3, aspect);
+                float3 layerB = EvaluateLayer(uv, _LayerBCount, _LayerBSpeed, _LayerBSizeMin, _LayerBSizeMax, _LayerBDistort, _LayerBLean, LAYER_B_SEED, aspect);
+                float3 layerC = EvaluateLayer(uv, _LayerCCount, _LayerCSpeed, _LayerCSizeMin, _LayerCSizeMax, _LayerCDistort, _LayerCLean, LAYER_C_SEED, aspect);
 
                 float2 distort = wetWarp + layerA.xy + layerB.xy + layerC.xy;
                 float mask = saturate(max(layerA.z, max(layerB.z, layerC.z)));
