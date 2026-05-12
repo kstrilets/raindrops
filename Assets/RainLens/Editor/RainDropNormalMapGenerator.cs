@@ -5,6 +5,7 @@ using UnityEngine;
 public class RainDropNormalMapGenerator : EditorWindow
 {
     private const int TextureSize = 256;
+    private const string OutputTextureDirectory = "Assets/RainLens/Textures";
     private const string OutputTexturePath = "Assets/RainLens/Textures/RainDropNormalMap.png";
 
     [MenuItem("Window/Rain Lens/Generate Drop Normal Map")]
@@ -89,7 +90,7 @@ public class RainDropNormalMapGenerator : EditorWindow
 
         texture.Apply(false, false);
 
-        string absoluteDirectory = Path.Combine(Directory.GetCurrentDirectory(), "Assets/RainLens/Textures");
+        string absoluteDirectory = Path.Combine(Directory.GetCurrentDirectory(), OutputTextureDirectory);
         Directory.CreateDirectory(absoluteDirectory);
 
         File.WriteAllBytes(OutputTexturePath, texture.EncodeToPNG());

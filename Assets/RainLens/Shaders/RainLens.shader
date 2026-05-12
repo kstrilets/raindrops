@@ -105,6 +105,9 @@ Shader "Custom/RainLens"
                 float _Darken;
             CBUFFER_END
 
+            static const float DROP_CULLING_RADIUS_MULTIPLIER = 1.8;
+            static const float TRAIL_MASK_WEIGHT = 0.4;
+
             float Hash11(float p)
             {
                 p = frac(p * 0.1031);
@@ -162,7 +165,7 @@ Shader "Custom/RainLens"
             float3 EvaluateDrop(float2 uv, float2 center, float size, float lean, float distortStr, float aspect)
             {
                 float2 delta = float2((uv.x - center.x) * aspect, uv.y - center.y);
-                if (length(delta) > size * 1.8)
+                if (length(delta) > size * DROP_CULLING_RADIUS_MULTIPLIER)
                 {
                     return float3(0.0, 0.0, 0.0);
                 }
@@ -173,7 +176,7 @@ Shader "Custom/RainLens"
                 float2 texUV = clamp(rd / size * 0.5 + 0.5, 0.0, 1.0);
                 float4 ns = SAMPLE_TEXTURE2D_LOD(_DropNormalMap, sampler_DropNormalMap, texUV, 0);
                 float2 n = ns.rg * 2.0 - 1.0;
-                float mask = saturate(ns.b + ns.a * 0.4);
+                float mask = saturate(ns.b + ns.a * TRAIL_MASK_WEIGHT);
                 return float3(n.x * distortStr * mask, n.y * distortStr * mask, mask);
             }
 
