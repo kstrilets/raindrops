@@ -164,7 +164,7 @@ Shader "Custom/RainLens"
                 float2 delta = float2((uv.x - center.x) * aspect, uv.y - center.y);
                 if (length(delta) > size * 1.8)
                 {
-                    return 0;
+                    return float3(0.0, 0.0, 0.0);
                 }
 
                 float cosL = cos(lean);
@@ -188,7 +188,7 @@ Shader "Custom/RainLens"
                 float layerSeed,
                 float aspect)
             {
-                float2 totalDistort = 0.0;
+                float2 totalDistort = float2(0.0, 0.0);
                 float maxMask = 0.0;
 
                 [loop]
