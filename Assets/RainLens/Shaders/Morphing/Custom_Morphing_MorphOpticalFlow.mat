@@ -11,7 +11,8 @@ Material:
   m_Shader: {fileID: 4800000, guid: 7660514f6394ca8489a0ce5e0bf53550, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
-  m_ValidKeywords: []
+  m_ValidKeywords:
+  - _USE_TEXTURE_SIZE
   m_InvalidKeywords: []
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
@@ -24,18 +25,26 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _TexA:
-        m_Texture: {fileID: 0}
+        m_Texture: {fileID: 2800000, guid: 79c352cc7647ea745ba39781f8b9dd03, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _TexB:
-        m_Texture: {fileID: 0}
+        m_Texture: {fileID: 2800000, guid: e41e89d5c97118546bc860c320691b3c, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _BlendSharpness: 0.2
-    - _BlendT: 0.5
-    - _WarpStrength: 0.08
+    - _BlendSharpness: 0.332
+    - _BlendT: 1
+    - _CycleDuration: 0.93
+    - _EasePower: 1
+    - _HoldDuration: 0.38
+    - _PositionX: 0.187
+    - _PositionY: 0.5
+    - _TexHeightPixels: 256
+    - _TexWidthPixels: 256
+    - _UseTextureSize: 1
+    - _WarpStrength: 0.048
     m_Colors: []
   m_BuildTextureStacks: []
   m_AllowLocking: 1

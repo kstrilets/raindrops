@@ -69,5 +69,5 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::RainLensFeature
   m_Active: 1
   settings:
-    material: {fileID: 2100000, guid: efafe0e03c75cb341be0b89ba94db826, type: 2}
+    material: {fileID: 2100000, guid: ce5d18ff3975ace459327ea1dacb5601, type: 2}
     passEvent: 550
