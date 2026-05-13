@@ -84,8 +84,7 @@ Shader "Custom/Morphing/MorphOpticalFlow"
                 float _BlendSharpness;
             CBUFFER_END
 
-            // Fix Bug 3: saturate input first to prevent pow(negative, power)
-            // which is undefined in HLSL and causes NaN on some GPU drivers.
+            // Saturate input first to prevent pow(negative, power) → NaN on some GPUs.
             float EaseInOut(float x, float power)
             {
                 x = saturate(x);
@@ -103,6 +102,16 @@ Shader "Custom/Morphing/MorphOpticalFlow"
                 // ── Scene passthrough ──────────────────────────────────────────
                 float4 scene = SAMPLE_TEXTURE2D(_BlitTexture, sampler_LinearClamp, screenUV);
 
+                // ── Guard: _ScreenParams can be (1,1,...) in some URP blit setups.
+                // If it is, halfW/halfH become enormous (e.g. 128) and the rect
+                // covers the whole screen, compositing white default textures
+                // over the entire frame → white screen.
+                // We require at least 2×2 to be a valid screen resolution.
+                float screenW = _ScreenParams.x;
+                float screenH = _ScreenParams.y;
+                if (screenW < 2.0 || screenH < 2.0)
+                    return half4(scene.rgb, 1.0);
+
                 // ── Texture display size in pixels ─────────────────────────────
                 float texW, texH;
                 #if defined(_USE_TEXTURE_SIZE)
@@ -116,7 +125,7 @@ Shader "Custom/Morphing/MorphOpticalFlow"
                 if (texW < 1.0 || texH < 1.0)
                     return half4(scene.rgb, 1.0);
 
-                // ── Fix Bug 1: reduce _Time.y precision loss ───────────────────
+                // ── Reduce _Time.y precision loss ──────────────────────────────
                 // Clamp to a 1-hour window before any fmod — keeps values small
                 // and avoids float precision loss in fmod at large _Time.y values.
                 float safeTime = fmod(_Time.y, 3600.0);
@@ -130,13 +139,10 @@ Shader "Custom/Morphing/MorphOpticalFlow"
                     float motionT = 0.0;
 
                     #if defined(_MOTIONMODE_LOOP)
-                        // Start → Target continuously, jumps back each period
                         motionT = saturate(fmod(safeTime, _MotionDuration) / _MotionDuration);
 
                     #elif defined(_MOTIONMODE_ONCE)
-                        // Fix Bug 2: use _StartTime (set from C# on enable) so the
-                        // animation always begins from t=0 regardless of scene uptime.
-                        // C#: material.SetFloat("_StartTime", Time.time);
+                        // _StartTime set from C#: material.SetFloat("_StartTime", Time.time)
                         float elapsed = max(0.0, _Time.y - _StartTime);
                         motionT = saturate(elapsed / _MotionDuration);
 
@@ -156,11 +162,13 @@ Shader "Custom/Morphing/MorphOpticalFlow"
                 #endif
 
                 // ── Build rect in normalised screen UV ────────────────────────
-                float screenW = _ScreenParams.x;
-                float screenH = _ScreenParams.y;
-
                 float halfW = (texW * 0.5) / screenW;
                 float halfH = (texH * 0.5) / screenH;
+
+                // Safety clamp: rect half-extents must stay within screen bounds.
+                // Prevents degenerate cases where texW/texH > screen size.
+                halfW = min(halfW, 0.5);
+                halfH = min(halfH, 0.5);
 
                 float left   = cx - halfW;
                 float right  = cx + halfW;
@@ -182,7 +190,7 @@ Shader "Custom/Morphing/MorphOpticalFlow"
                 float hold    = _HoldDuration;
                 float transit = _CycleDuration * 0.5;
                 float period  = transit * 2.0 + hold * 2.0;
-                float localT  = fmod(safeTime, period);   // uses safeTime (Bug 1 fix)
+                float localT  = fmod(safeTime, period);
 
                 float tLinear;
                 if      (localT < hold)                      tLinear = 0.0;
@@ -190,7 +198,6 @@ Shader "Custom/Morphing/MorphOpticalFlow"
                 else if (localT < hold * 2.0 + transit)     tLinear = 1.0;
                 else                                         tLinear = 1.0 - (localT - hold * 2.0 - transit) / transit;
 
-                // Non-linear easing on the blend (EaseInOut already saturates — Bug 3 fix)
                 float t = EaseInOut(tLinear, _EasePower);
 
                 // ── Sequential two-phase transparency ─────────────────────────
