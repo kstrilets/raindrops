@@ -17,6 +17,9 @@ Shader "Custom/Morphing/MorphOpticalFlow"
         _MotionDuration  ("Motion Duration (sec)",        Range(0.1, 20.0)) = 3.0
         _MotionEase      ("Motion Ease Power",            Range(1.0, 5.0))  = 2.0
         [KeywordEnum(PingPong, Loop, Once)] _MotionMode ("Motion Mode", Float) = 0
+        // _StartTime must be set from C# (material.SetFloat("_StartTime", Time.time))
+        // when Motion Mode = Once, so the animation starts from the correct moment.
+        _StartTime       ("Start Time (set from C#)",     Float)            = 0.0
         [Header(Time Control)]
         _CycleDuration   ("Cycle Duration (sec)",         Range(0.5, 20.0)) = 4.0
         _HoldDuration    ("Hold Duration (sec)",          Range(0.0, 10.0)) = 1.0
@@ -63,17 +66,17 @@ Shader "Custom/Morphing/MorphOpticalFlow"
             float4 _TexA_TexelSize;
 
             CBUFFER_START(UnityPerMaterial)
-                float _UseTextureSize;
+                // Note: _UseTextureSize, _EnableMotion, _MotionMode are keyword-only
+                // (shader_feature_local) and intentionally NOT in the CBUFFER.
                 float _TexWidthPixels;
                 float _TexHeightPixels;
                 float _PositionX;
                 float _PositionY;
-                float _EnableMotion;
                 float _TargetX;
                 float _TargetY;
                 float _MotionDuration;
                 float _MotionEase;
-                float _MotionMode;
+                float _StartTime;
                 float _CycleDuration;
                 float _HoldDuration;
                 float _EasePower;
@@ -81,9 +84,11 @@ Shader "Custom/Morphing/MorphOpticalFlow"
                 float _BlendSharpness;
             CBUFFER_END
 
-            // Slow → fast → slow across [0,1]
+            // Fix Bug 3: saturate input first to prevent pow(negative, power)
+            // which is undefined in HLSL and causes NaN on some GPU drivers.
             float EaseInOut(float x, float power)
             {
+                x = saturate(x);
                 float h = 0.5;
                 if (x < h)
                     return h * pow(x / h, power);
@@ -111,6 +116,11 @@ Shader "Custom/Morphing/MorphOpticalFlow"
                 if (texW < 1.0 || texH < 1.0)
                     return half4(scene.rgb, 1.0);
 
+                // ── Fix Bug 1: reduce _Time.y precision loss ───────────────────
+                // Clamp to a 1-hour window before any fmod — keeps values small
+                // and avoids float precision loss in fmod at large _Time.y values.
+                float safeTime = fmod(_Time.y, 3600.0);
+
                 // ── Animated centre position ───────────────────────────────────
                 float cx = _PositionX;
                 float cy = _PositionY;
@@ -121,16 +131,18 @@ Shader "Custom/Morphing/MorphOpticalFlow"
 
                     #if defined(_MOTIONMODE_LOOP)
                         // Start → Target continuously, jumps back each period
-                        motionT = saturate(fmod(_Time.y, _MotionDuration) / _MotionDuration);
+                        motionT = saturate(fmod(safeTime, _MotionDuration) / _MotionDuration);
 
                     #elif defined(_MOTIONMODE_ONCE)
-                        // Start → Target once, stops
-                        motionT = saturate(_Time.y / _MotionDuration);
+                        // Fix Bug 2: use _StartTime (set from C# on enable) so the
+                        // animation always begins from t=0 regardless of scene uptime.
+                        // C#: material.SetFloat("_StartTime", Time.time);
+                        float elapsed = max(0.0, _Time.y - _StartTime);
+                        motionT = saturate(elapsed / _MotionDuration);
 
                     #else // PingPong (default)
-                        // Start → Target → Start → ...
                         float pp = _MotionDuration * 2.0;
-                        float lm = fmod(_Time.y, pp);
+                        float lm = fmod(safeTime, pp);
                         motionT  = (lm < _MotionDuration)
                                  ? lm / _MotionDuration
                                  : 1.0 - (lm - _MotionDuration) / _MotionDuration;
@@ -170,7 +182,7 @@ Shader "Custom/Morphing/MorphOpticalFlow"
                 float hold    = _HoldDuration;
                 float transit = _CycleDuration * 0.5;
                 float period  = transit * 2.0 + hold * 2.0;
-                float localT  = fmod(_Time.y, period);
+                float localT  = fmod(safeTime, period);   // uses safeTime (Bug 1 fix)
 
                 float tLinear;
                 if      (localT < hold)                      tLinear = 0.0;
@@ -178,7 +190,7 @@ Shader "Custom/Morphing/MorphOpticalFlow"
                 else if (localT < hold * 2.0 + transit)     tLinear = 1.0;
                 else                                         tLinear = 1.0 - (localT - hold * 2.0 - transit) / transit;
 
-                // Non-linear easing on the blend
+                // Non-linear easing on the blend (EaseInOut already saturates — Bug 3 fix)
                 float t = EaseInOut(tLinear, _EasePower);
 
                 // ── Sequential two-phase transparency ─────────────────────────
