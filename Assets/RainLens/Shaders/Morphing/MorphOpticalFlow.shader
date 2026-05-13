@@ -13,7 +13,7 @@ Shader "Custom/Morphing/MorphOpticalFlow"
         [Header(Time Control)]
         _CycleDuration  ("Cycle Duration (sec)",   Range(0.5, 20.0)) = 4.0
         _HoldDuration   ("Hold Duration (sec)",    Range(0.0, 10.0)) = 1.0
-        [Header(Easing slow start then fast)]
+        [Header(Easing - slow start then fast)]
         _EasePower      ("Ease Power (1=linear 3=strong)", Range(1.0, 5.0)) = 2.0
         [Header(Warp)]
         _WarpStrength   ("Warp Strength",          Range(0, 0.3))    = 0.08

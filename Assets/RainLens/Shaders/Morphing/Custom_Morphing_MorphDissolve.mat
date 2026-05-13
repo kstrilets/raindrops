@@ -24,22 +24,22 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _NoiseTex:
-        m_Texture: {fileID: 2800000, guid: 54c9514d3305422408497689b06c6bc4, type: 3}
+        m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _TexA:
-        m_Texture: {fileID: 2800000, guid: 5bd404c816151384ea51dbdf8becc74a, type: 3}
+        m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _TexB:
-        m_Texture: {fileID: 2800000, guid: 904ed15552cab35419064703dc5dec20, type: 3}
+        m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
     - _EdgeBrightness: 1.5
     - _EdgeWidth: 0.04
-    - _Threshold: 0.871
+    - _Threshold: 0.5
     m_Colors:
     - _EdgeColor: {r: 1, g: 1, b: 1, a: 1}
   m_BuildTextureStacks: []
