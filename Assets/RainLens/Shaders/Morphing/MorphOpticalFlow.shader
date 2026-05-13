@@ -2,22 +2,29 @@ Shader "Custom/Morphing/MorphOpticalFlow"
 {
     Properties
     {
-        _TexA           ("Texture A",              2D)               = "white" {}
-        _TexB           ("Texture B",              2D)               = "white" {}
+        _TexA            ("Texture A",                    2D)               = "white" {}
+        _TexB            ("Texture B",                    2D)               = "white" {}
         [Header(Size and Position)]
         [Toggle(_USE_TEXTURE_SIZE)] _UseTextureSize ("Use Actual Texture Size", Float) = 0
-        _TexWidthPixels  ("Width (pixels)",        Range(1, 4096))   = 256
-        _TexHeightPixels ("Height (pixels)",       Range(1, 4096))   = 256
-        _PositionX       ("Position X (0=left 1=right)", Range(0,1)) = 0.5
-        _PositionY       ("Position Y (0=bottom 1=top)", Range(0,1)) = 0.5
+        _TexWidthPixels  ("Width (pixels)",               Range(1, 4096))   = 256
+        _TexHeightPixels ("Height (pixels)",              Range(1, 4096))   = 256
+        _PositionX       ("Start Position X (0=left 1=right)", Range(0,1)) = 0.5
+        _PositionY       ("Start Position Y (0=bottom 1=top)", Range(0,1)) = 0.5
+        [Header(Motion)]
+        [Toggle(_ENABLE_MOTION)] _EnableMotion  ("Enable Motion",           Float)            = 0
+        _TargetX         ("Target Position X",            Range(0,1))       = 0.5
+        _TargetY         ("Target Position Y",            Range(0,1))       = 0.5
+        _MotionDuration  ("Motion Duration (sec)",        Range(0.1, 20.0)) = 3.0
+        _MotionEase      ("Motion Ease Power",            Range(1.0, 5.0))  = 2.0
+        [KeywordEnum(PingPong, Loop, Once)] _MotionMode ("Motion Mode", Float) = 0
         [Header(Time Control)]
-        _CycleDuration  ("Cycle Duration (sec)",   Range(0.5, 20.0)) = 4.0
-        _HoldDuration   ("Hold Duration (sec)",    Range(0.0, 10.0)) = 1.0
-        [Header(Easing - slow start then fast)]
-        _EasePower      ("Ease Power (1=linear 3=strong)", Range(1.0, 5.0)) = 2.0
+        _CycleDuration   ("Cycle Duration (sec)",         Range(0.5, 20.0)) = 4.0
+        _HoldDuration    ("Hold Duration (sec)",          Range(0.0, 10.0)) = 1.0
+        [Header(Easing)]
+        _EasePower       ("Blend Ease Power (1=linear 5=strong)", Range(1.0, 5.0)) = 2.0
         [Header(Warp)]
-        _WarpStrength   ("Warp Strength",          Range(0, 0.3))    = 0.08
-        _BlendSharpness ("Blend Sharpness",        Range(0.01, 0.49))= 0.2
+        _WarpStrength    ("Warp Strength",                Range(0, 0.3))    = 0.08
+        _BlendSharpness  ("Blend Sharpness",              Range(0.01, 0.49))= 0.2
     }
 
     SubShader
@@ -42,6 +49,8 @@ Shader "Custom/Morphing/MorphOpticalFlow"
             #pragma fragment frag
             #pragma target 3.5
             #pragma shader_feature_local _USE_TEXTURE_SIZE
+            #pragma shader_feature_local _ENABLE_MOTION
+            #pragma shader_feature_local _MOTIONMODE_PINGPONG _MOTIONMODE_LOOP _MOTIONMODE_ONCE
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.core/Runtime/Utilities/Blit.hlsl"
@@ -49,9 +58,8 @@ Shader "Custom/Morphing/MorphOpticalFlow"
             TEXTURE2D(_TexA); SAMPLER(sampler_TexA);
             TEXTURE2D(_TexB); SAMPLER(sampler_TexB);
 
-            // _TexA_TexelSize must be declared OUTSIDE the CBUFFER —
-            // Unity injects it automatically when _TexA is a sampler property.
-            // Format: float4(1/width, 1/height, width, height)
+            // Must be OUTSIDE CBUFFER — Unity injects alongside the sampler.
+            // float4(1/w, 1/h, w, h)
             float4 _TexA_TexelSize;
 
             CBUFFER_START(UnityPerMaterial)
@@ -60,6 +68,12 @@ Shader "Custom/Morphing/MorphOpticalFlow"
                 float _TexHeightPixels;
                 float _PositionX;
                 float _PositionY;
+                float _EnableMotion;
+                float _TargetX;
+                float _TargetY;
+                float _MotionDuration;
+                float _MotionEase;
+                float _MotionMode;
                 float _CycleDuration;
                 float _HoldDuration;
                 float _EasePower;
@@ -67,14 +81,9 @@ Shader "Custom/Morphing/MorphOpticalFlow"
                 float _BlendSharpness;
             CBUFFER_END
 
-            // Ease-in then ease-out within one phase: slow → fast → slow
-            // pow curve flipped so it accelerates in the middle of the transition.
-            // We use a "smoothstep-like" curve: slow at 0, fast at 0.5, slow at 1.
-            // For slow-start-fast-end within one phase: use pow(x, _EasePower).
+            // Slow → fast → slow across [0,1]
             float EaseInOut(float x, float power)
             {
-                // Piecewise: first half ease-in, second half ease-out
-                // Gives slow→fast→slow feel across [0,1]
                 float h = 0.5;
                 if (x < h)
                     return h * pow(x / h, power);
@@ -92,7 +101,6 @@ Shader "Custom/Morphing/MorphOpticalFlow"
                 // ── Texture display size in pixels ─────────────────────────────
                 float texW, texH;
                 #if defined(_USE_TEXTURE_SIZE)
-                    // _TexA_TexelSize.zw = (width, height) injected by Unity
                     texW = _TexA_TexelSize.z;
                     texH = _TexA_TexelSize.w;
                 #else
@@ -100,35 +108,64 @@ Shader "Custom/Morphing/MorphOpticalFlow"
                     texH = _TexHeightPixels;
                 #endif
 
-                // Guard against degenerate size (e.g. texture not yet assigned)
                 if (texW < 1.0 || texH < 1.0)
                     return half4(scene.rgb, 1.0);
 
-                // ── Compute rect in normalised screen UV ───────────────────────
+                // ── Animated centre position ───────────────────────────────────
+                float cx = _PositionX;
+                float cy = _PositionY;
+
+                #if defined(_ENABLE_MOTION)
+                {
+                    float motionT = 0.0;
+
+                    #if defined(_MOTIONMODE_LOOP)
+                        // Start → Target continuously, jumps back each period
+                        motionT = saturate(fmod(_Time.y, _MotionDuration) / _MotionDuration);
+
+                    #elif defined(_MOTIONMODE_ONCE)
+                        // Start → Target once, stops
+                        motionT = saturate(_Time.y / _MotionDuration);
+
+                    #else // PingPong (default)
+                        // Start → Target → Start → ...
+                        float pp = _MotionDuration * 2.0;
+                        float lm = fmod(_Time.y, pp);
+                        motionT  = (lm < _MotionDuration)
+                                 ? lm / _MotionDuration
+                                 : 1.0 - (lm - _MotionDuration) / _MotionDuration;
+                        motionT  = saturate(motionT);
+                    #endif
+
+                    float em = EaseInOut(motionT, _MotionEase);
+                    cx = lerp(_PositionX, _TargetX, em);
+                    cy = lerp(_PositionY, _TargetY, em);
+                }
+                #endif
+
+                // ── Build rect in normalised screen UV ────────────────────────
                 float screenW = _ScreenParams.x;
                 float screenH = _ScreenParams.y;
 
                 float halfW = (texW * 0.5) / screenW;
                 float halfH = (texH * 0.5) / screenH;
 
-                float left   = _PositionX - halfW;
-                float right  = _PositionX + halfW;
-                float bottom = _PositionY - halfH;
-                float top    = _PositionY + halfH;
+                float left   = cx - halfW;
+                float right  = cx + halfW;
+                float bottom = cy - halfH;
+                float top    = cy + halfH;
 
-                // Outside the rect → return scene unchanged
+                // Outside rect → return scene pixel untouched
                 if (screenUV.x < left  || screenUV.x > right  ||
                     screenUV.y < bottom || screenUV.y > top)
-                {
                     return half4(scene.rgb, 1.0);
-                }
 
                 // Remap to local texture UV [0,1]
                 float2 uv;
                 uv.x = (screenUV.x - left)   / (right - left);
                 uv.y = (screenUV.y - bottom)  / (top   - bottom);
 
-                // ── Drive t over time (ping-pong with hold regions) ────────────
+                // ── Drive blend t over time (ping-pong with hold) ──────────────
                 //   |← hold →|←── A→B ──→|← hold →|←── B→A ──→| repeat
                 float hold    = _HoldDuration;
                 float transit = _CycleDuration * 0.5;
@@ -136,14 +173,12 @@ Shader "Custom/Morphing/MorphOpticalFlow"
                 float localT  = fmod(_Time.y, period);
 
                 float tLinear;
-                if      (localT < hold)                       tLinear = 0.0;
-                else if (localT < hold + transit)             tLinear = (localT - hold) / transit;
-                else if (localT < hold * 2.0 + transit)      tLinear = 1.0;
-                else                                          tLinear = 1.0 - (localT - hold * 2.0 - transit) / transit;
+                if      (localT < hold)                      tLinear = 0.0;
+                else if (localT < hold + transit)            tLinear = (localT - hold) / transit;
+                else if (localT < hold * 2.0 + transit)     tLinear = 1.0;
+                else                                         tLinear = 1.0 - (localT - hold * 2.0 - transit) / transit;
 
-                // ── Non-linear easing: slow start → fast middle ────────────────
-                // EaseInOut maps linear tLinear to a curved t.
-                // _EasePower=1 → linear, =2 → moderate, =4 → very slow start/end
+                // Non-linear easing on the blend
                 float t = EaseInOut(tLinear, _EasePower);
 
                 // ── Sequential two-phase transparency ─────────────────────────
@@ -177,7 +212,7 @@ Shader "Custom/Morphing/MorphOpticalFlow"
                 float3 morphRGB = (colA.rgb * texAlphaA + colB.rgb * texAlphaB * (1.0 - texAlphaA))
                                   / max(morphAlpha, 0.0001);
 
-                // ── Composite morph over scene ─────────────────────────────────
+                // ── Manual composite morph over scene ─────────────────────────
                 float3 finalRGB = morphRGB * morphAlpha + scene.rgb * (1.0 - morphAlpha);
 
                 return half4(finalRGB, 1.0);
