@@ -86,7 +86,6 @@ Shader "Custom/Rain/RaindropsWindow"
                                        dot(p, float2(269.5, 183.3)))) * 43758.5453);
             }
 
-            // Smooth value noise for wetness background distortion
             float valueNoise(float2 uv)
             {
                 float2 i = floor(uv);
@@ -100,53 +99,51 @@ Shader "Custom/Rain/RaindropsWindow"
             }
 
             // ── Single raindrop grid layer ─────────────────────────────────────
+            // dropUV is a GRAVITY-SPACE UV where:
+            //   x = 0 (left) → 1 (right)   — same as screen
+            //   y = 0 (top)  → 1 (bottom)  — FLIPPED from Blit UV
+            // This keeps all drop/trail logic platform-independent.
+            //
             // Returns:
-            //   .xy = refraction UV offset
+            //   .xy = refraction offset in GRAVITY-SPACE UV (will be unflipped on output)
             //   .z  = combined opacity mask [0,1]
             //   .w  = specular highlight    [0,1]
             float4 RaindropLayer(
-                float2 screenUV,
+                float2 dropUV,      // gravity-space UV (y=0 top, y=1 bottom)
                 float  aspect,
                 float  safeTime,
                 float  density,
                 float  speedMult,
                 float  sizeMult)
             {
-                // Grid: cols scaled by aspect so cells are approximately square on screen
                 float cols       = max(1.0, round(density * aspect));
                 float rows       = density;
                 float cellAspect = (aspect * rows) / cols;
 
-                float2 gridUV = float2(screenUV.x * cols, screenUV.y * rows);
+                float2 gridUV = float2(dropUV.x * cols, dropUV.y * rows);
                 float2 cellID = floor(gridUV);
-                float2 cellUV = frac(gridUV);
+                float2 cellUV = frac(gridUV);   // [0,1] within cell, y=0 top, y=1 bottom
 
-                // Per-cell random values
                 float2 rnd  = hash2(cellID);
                 float  rnd1 = hash1(cellID + float2(3.7, 1.3));
                 float  rnd2 = hash1(cellID + float2(8.1, 4.6));
 
-                // X rest position: random within [0.15, 0.85] inside cell
+                // Random X rest position [0.15, 0.85]
                 float dropX = 0.15 + rnd.x * 0.70;
 
-                // Per-drop fall speed (with variance)
+                // Per-drop fall speed
                 float speed = speedMult * max(0.05,
                               1.0 - _SpeedVariance * 0.5 + _SpeedVariance * rnd.y);
 
-                // ── REVERTED direction: phase increases 0→1, dropY falls 1→0
-                // In URP Blit UV: y=0 = bottom, y=1 = top.
-                // Subtracting phase from 1.0 makes the drop fall downward (1→0).
+                // phase 0→1: drop travels y=0 (top) → y=1 (bottom), wraps
                 float phase = frac(safeTime * speed * 0.1 + rnd1);
-                float dropY = 1.0 - phase;      // falls top (y=1) → bottom (y=0)
+                float dropY = phase;    // y=0 top → y=1 bottom (gravity space)
 
-                // How far the drop has fallen in this cycle [0=just spawned at top, 1=at bottom]
-                float fallProgress = phase;
-
-                // Horizontal drift: accumulates as drop falls further
-                float dropXt = saturate(dropX + _WindStrength * fallProgress * 0.12
+                // Horizontal wind drift: accumulates as drop falls
+                float dropXt = saturate(dropX + _WindStrength * phase * 0.12
                                         * (rnd2 * 2.0 - 1.0));
 
-                // ── Drop SDF (circle, corrected for non-square cells) ──────────
+                // ── Drop SDF ───────────────────────────────────────────────────
                 float2 dropCenter = float2(dropXt, dropY);
                 float2 d          = cellUV - dropCenter;
                 d.x              *= cellAspect;
@@ -155,53 +152,39 @@ Shader "Custom/Rain/RaindropsWindow"
                 float radius   = _DropSize * sizeMult;
                 float dropMask = 1.0 - smoothstep(radius - 0.018, radius + 0.018, dropDist);
 
-                // ── Trail: wet streak LEFT BEHIND the moving drop ──────────────
-                // Drop falls toward y=0 (bottom), so the trail is at HIGHER y values
-                // (where the drop has already been — i.e. above the drop in world space).
-                //
-                // Trail X follows the same wind drift as the drop at each historical Y.
-                // For a pixel at cellUV.y > dropY (trail region), reconstruct what the
-                // drop's X was when it was at that Y:
-                //   historicalProgress = 1.0 - cellUV.y   (phase when drop was at that Y)
-                //   historicalX = dropX + wind * historicalProgress * factor
-                //
-                // This gives the trail a natural curve matching the drop's path.
-
+                // ── Trail: streak at LOWER y values (above the drop = where it was) ──
+                // In gravity space: trail region is cellUV.y < dropY
                 float trailMask = 0.0;
-                float behind    = cellUV.y - dropY;   // > 0 = pixel is above drop (trail region)
+                float behind    = dropY - cellUV.y;   // > 0 = above drop = trail region
 
                 if (behind > 0.001 && behind < _TrailLength)
                 {
-                    // Reconstruct drop X at this historical Y position
-                    float histProgress = 1.0 - cellUV.y;   // phase when drop was here
-                    float histX        = saturate(dropX + _WindStrength * histProgress * 0.12
-                                                  * (rnd2 * 2.0 - 1.0));
+                    // Reconstruct historical X at this Y (matching wind curve)
+                    float histPhase = cellUV.y;   // phase when drop was at this Y
+                    float histX     = saturate(dropX + _WindStrength * histPhase * 0.12
+                                               * (rnd2 * 2.0 - 1.0));
 
                     float trailHalfW = radius * _TrailWidth / max(cellAspect, 0.001);
                     float xDist      = abs(cellUV.x - histX);
 
                     if (xDist < trailHalfW)
                     {
-                        // Taper: wide and opaque at drop, narrow and transparent at end
                         float xFade    = 1.0 - (xDist / max(trailHalfW, 0.001));
                         float yFade    = 1.0 - (behind / _TrailLength);
-                        // Extra fade-in right at the drop edge so trail connects smoothly
                         float joinFade = smoothstep(0.0, radius * 0.5, behind);
-                        trailMask = saturate(xFade * yFade * joinFade) * _TrailOpacity;
+                        trailMask      = saturate(xFade * yFade * joinFade) * _TrailOpacity;
                     }
                 }
 
-                // ── Surface normal from drop SDF (for refraction + specular) ───
+                // ── Surface normal + refraction ────────────────────────────────
                 float2 normal2D = float2(d.x / max(cellAspect, 0.001), d.y)
                                   / max(dropDist, 0.001);
 
-                // ── Refraction: convex lens bends inward ───────────────────────
                 float2 refractOff  = -normal2D * dropMask * _RefractionStrength * 0.045;
-                // Trail: subtle vertical wobble (thin water film)
                 refractOff        += float2(0.0, (rnd.y - 0.5) * 0.003) * trailMask;
 
-                // ── Specular highlight (directional from top-left) ─────────────
-                float2 lightDir = normalize(float2(-0.4, 0.7));   // top-left in URP UV space
+                // ── Specular (light from top-left in gravity space) ────────────
+                float2 lightDir = normalize(float2(-0.4, -0.7));
                 float  spec     = pow(saturate(dot(-normal2D, lightDir)),
                                       max(_ReflectionSharpness, 1.0)) * dropMask;
 
@@ -212,6 +195,8 @@ Shader "Custom/Rain/RaindropsWindow"
 
             half4 frag(Varyings IN) : SV_Target
             {
+                // screenUV from Blit.hlsl: covers [0,1]×[0,1] over the full screen.
+                // Y-direction depends on platform (DX: y=0 top; GL: y=0 bottom).
                 float2 screenUV = IN.texcoord;
 
                 // Guard: _ScreenParams can be (1,1) during early blit passes
@@ -223,35 +208,48 @@ Shader "Custom/Rain/RaindropsWindow"
                 float aspect   = screenW / screenH;
                 float safeTime = fmod(_Time.y, 3600.0);
 
-                // ── Two layers for depth and variety ───────────────────────────
-                // Layer A: large, slow, sparse primary drops
-                float4 layerA = RaindropLayer(
-                    screenUV, aspect, safeTime,
-                    _DropDensity,
-                    _DropSpeed,
-                    1.0);
+                // ── Convert screenUV → gravity-space UV ────────────────────────
+                // We normalise Y so that y=0 always means TOP OF SCREEN and y=1
+                // means BOTTOM OF SCREEN regardless of platform UV conventions.
+                // On DX/Metal: _ProjectionParams.x = 1  (y=0 is already top → no flip)
+                // On GL:       _ProjectionParams.x = -1 (y=0 is bottom → flip)
+                float2 dropUV = screenUV;
+                #if UNITY_UV_STARTS_AT_TOP
+                    // DX/Metal/Vulkan: Blit.hlsl already places y=0 at top — no flip needed
+                #else
+                    // OpenGL: y=0 is at bottom, flip so y=0 = top
+                    dropUV.y = 1.0 - screenUV.y;
+                #endif
 
-                // Layer B: small, faster, denser secondary drops
-                // Time offset (17.3) de-syncs it from layer A
-                float4 layerB = RaindropLayer(
-                    screenUV, aspect, safeTime + 17.3,
-                    _DropDensity * 1.75,
-                    _DropSpeed   * 1.55,
-                    0.55);
+                // ── Two raindrop layers ────────────────────────────────────────
+                float4 layerA = RaindropLayer(dropUV, aspect, safeTime,
+                    _DropDensity,         _DropSpeed,        1.0);
 
-                // Composite layers: B underneath, A on top
+                float4 layerB = RaindropLayer(dropUV, aspect, safeTime + 17.3,
+                    _DropDensity * 1.75,  _DropSpeed * 1.55, 0.55);
+
+                // Composite: B underneath, A on top
                 float  aZ           = layerA.z;
-                float  bZ           = layerB.z * (1.0 - aZ);
                 float2 refractOff   = layerA.xy + layerB.xy * (1.0 - aZ);
-                float  combinedMask = saturate(aZ + bZ);
-                float  specular     = layerA.w + layerB.w * (1.0 - aZ);
+                float  combinedMask = saturate(aZ + layerB.z * (1.0 - aZ));
+                float  specular     = layerA.w  + layerB.w  * (1.0 - aZ);
 
-                // ── Background wetness (noise-based distortion between drops) ──
-                float2 noiseUV = screenUV * _WetnessScale
-                               + float2(0.0, -safeTime * _WetnessSpeed);   // flows downward
+                // Convert refraction offset back from gravity-space to screen-UV space
+                #if !UNITY_UV_STARTS_AT_TOP
+                    refractOff.y = -refractOff.y;
+                #endif
+
+                // ── Background wetness ─────────────────────────────────────────
+                // Noise flows downward in gravity space → add to dropUV.y
+                float2 noiseUV = dropUV * _WetnessScale
+                               + float2(0.0, safeTime * _WetnessSpeed);
                 float nx = valueNoise(noiseUV)                     * 2.0 - 1.0;
                 float ny = valueNoise(noiseUV + float2(5.7, 3.13)) * 2.0 - 1.0;
                 float2 wetnessOff = float2(nx, ny) * _WetnessStrength * 0.009;
+                // Convert wetness offset to screen-UV space too
+                #if !UNITY_UV_STARTS_AT_TOP
+                    wetnessOff.y = -wetnessOff.y;
+                #endif
 
                 float2 totalOff  = refractOff + wetnessOff * (1.0 - combinedMask);
                 float2 refractUV = clamp(screenUV + totalOff, 0.001, 0.999);
@@ -260,15 +258,12 @@ Shader "Custom/Rain/RaindropsWindow"
                 float4 scene          = SAMPLE_TEXTURE2D(_BlitTexture, sampler_LinearClamp, screenUV);
                 float4 refractedScene = SAMPLE_TEXTURE2D(_BlitTexture, sampler_LinearClamp, refractUV);
 
-                // ── Compose drop colour ────────────────────────────────────────
+                // ── Compose ────────────────────────────────────────────────────
                 float3 dropRGB = refractedScene.rgb;
                 dropRGB = lerp(dropRGB, _DropColor.rgb, _DropColor.a * combinedMask * 0.3);
                 dropRGB += _ReflectionColor.rgb * specular * _ReflectionStrength;
 
-                // ── Blend over scene ───────────────────────────────────────────
                 float3 finalRGB = lerp(scene.rgb, dropRGB, combinedMask * _Transparency);
-
-                // Subtle overall wetness tint between drops
                 finalRGB = lerp(finalRGB, refractedScene.rgb,
                                 _WetnessStrength * 0.12 * (1.0 - combinedMask));
 
