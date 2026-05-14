@@ -9,7 +9,7 @@ Shader "Custom/Rain/RaindropSDF"
         _DropAspect         ("Width / Height ratio",            Range(0.4, 1.6))    = 0.88
         _GravityFlattening  ("Gravity Sag (bottom flatter)",    Range(0.0, 0.6))    = 0.16
 
-        [Header(Wettability - contact line irregularity)]
+        [Header(Wettability contact line irregularity)]
         // Simulates contact-angle hysteresis: the drop edge pins and releases
         // at microscopic surface features, producing an irregular contact line.
         _WettabilityStrength("Irregularity Strength",           Range(0.0, 0.55))   = 0.20
