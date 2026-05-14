@@ -58,7 +58,7 @@ Shader "Custom/Rain/RaindropSDFTrail"
         _TrailAspect        ("Trail Width / Height ratio",         Range(0.1, 1.2))    = 0.35
         _TrailStretch       ("Trail Y Stretch (elongation)",       Range(0.5, 5.0))    = 1.8
 
-        [Header(Trail Wettability - independent shape)]
+        [Header(Trail Wettability independent shape)]
         _TrailWettabilityStrength("Trail Irregularity Strength",   Range(0.0, 0.75))   = 0.45
         _TrailWettabilityScale   ("Trail Irregularity Frequency",  Range(0.5, 12.0))   = 4.8
         _TrailWettabilitySeed    ("Trail Shape Seed",              Float)              = 47.3
