@@ -27,10 +27,10 @@ Material:
     m_Floats:
     - _CausticRadius: 0.72
     - _CausticStrength: 0.65
-    - _CausticWidth: 0.07
+    - _CausticWidth: 0.0694
     - _ChromaticAberration: 0.005
     - _DropAspect: 0.82
-    - _DropRadius: 80
+    - _DropRadius: 99
     - _EdgeSoftness: 1.5
     - _FresnelPower: 3.5
     - _FresnelStrength: 0.85
@@ -41,7 +41,15 @@ Material:
     - _LightDirY: 0.65
     - _MeniscusStrength: 0.5
     - _MeniscusWidth: 0.02
+    - _PhaseOffset: 0
     - _PositionX: 0.5
+    - _PositionY: 0.5
+    - _SagEase: 2.2
+    - _SagHoldDuration: 0.6
+    - _SagMax: 0.05
+    - _SagMaxOffset: 0.6
+    - _SagMin: 0.108
+    - _SagRiseDuration: 1.83
     - _SlideBottomY: 0.12
     - _SlideDuration: 4
     - _SlideEase: 2
@@ -52,13 +60,14 @@ Material:
     - _SpecularStrength: 2.5
     - _TrailAspect: 0.35
     - _TrailIOR: 1.16
-    - _TrailLensThickness: 0.18
-    - _TrailOpacity: 0.52
-    - _TrailSpecularScale: 0.28
+    - _TrailLensThickness: 0.216
+    - _TrailOpacity: 0.117
+    - _TrailSpecularScale: 0
     - _TrailStretch: 1.8
-    - _TrailWettabilityScale: 4.8
+    - _TrailWettabilityScale: 5.9
     - _TrailWettabilitySeed: 47.3
-    - _TrailWettabilityStrength: 0.45
+    - _TrailWettabilityStrength: 0.75
+    - _TrailWidthRatio: 0.464
     - _Transparency: 0.92
     - _WettabilityScale: 2.8
     - _WettabilitySeed: 0

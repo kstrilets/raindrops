@@ -28,11 +28,11 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _TexA:
-        m_Texture: {fileID: 0}
+        m_Texture: {fileID: 2800000, guid: 79c352cc7647ea745ba39781f8b9dd03, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _TexB:
-        m_Texture: {fileID: 0}
+        m_Texture: {fileID: 2800000, guid: e41e89d5c97118546bc860c320691b3c, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Ints: []

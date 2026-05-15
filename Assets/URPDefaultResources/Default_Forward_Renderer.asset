@@ -25,8 +25,8 @@ MonoBehaviour:
     probeSamplingDebugTexture: {fileID: 0}
     probeVolumeBlendStatesCS: {fileID: 0}
   m_RendererFeatures:
-  - {fileID: 5827890326828920371}
-  m_RendererFeatureMap: 33ae92f05fd3e050
+  - {fileID: 6036995307550561948}
+  m_RendererFeatureMap: 9c5640313fb7c753
   m_UseNativeRenderPass: 0
   xrSystemData: {fileID: 0}
   postProcessData: {fileID: 11400000, guid: 41439944d30ece34e96484bdb6645b55, type: 2}
@@ -55,7 +55,7 @@ MonoBehaviour:
   m_DepthTextureFormat: 0
   m_AccurateGbufferNormals: 0
   m_IntermediateTextureMode: 0
---- !u!114 &5827890326828920371
+--- !u!114 &6036995307550561948
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -64,10 +64,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c94aab3aaa64026429e9535cb6cd8892, type: 3}
-  m_Name: RainLensFeature
-  m_EditorClassIdentifier: Assembly-CSharp::RainLensFeature
+  m_Script: {fileID: 11500000, guid: 0e1947118810dac4688342c8ae33175b, type: 3}
+  m_Name: ParticleRendererFeature
+  m_EditorClassIdentifier: Assembly-CSharp::ParticleRendererFeature
   m_Active: 1
-  settings:
-    material: {fileID: 2100000, guid: efafe0e03c75cb341be0b89ba94db826, type: 2}
-    passEvent: 550

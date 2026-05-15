@@ -1,0 +1,32 @@
+#pragma kernel CSMain
+
+struct Particle {
+    float3 position;
+    float3 velocity;
+};
+
+int _ParticleCount;
+float t;
+float dt;
+
+RWStructuredBuffer<Particle> Result;
+
+[numthreads(256, 1, 1)]
+void CSMain(uint3 id : SV_DispatchThreadID) {
+    if (id.x >= (uint)_ParticleCount) return;
+    
+    Particle p = Result[id.x];
+    
+    float r = (float)id.x / (float)_ParticleCount * 6.28f;
+    float3 targetVel = float3(sin(r + t), cos(r * 1.5 + t), sin(r * 0.8 + t * 1.2));
+    p.velocity = lerp(p.velocity, targetVel * 3.0, 0.08);
+    
+    p.position += p.velocity * dt;
+    
+    if (any(abs(p.position) > 10.0)) {
+        p.position = clamp(p.position, -10.0, 10.0);
+        p.velocity *= -0.7;
+    }
+    
+    Result[id.x] = p;
+}

@@ -7,8 +7,8 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Custom_Morphing_MorphHeightPriority
-  m_Shader: {fileID: 4800000, guid: 5dd6823a9f3c22a4693f4687fa94ca12, type: 3}
+  m_Name: Custom_ParticleSim3DRender
+  m_Shader: {fileID: 4800000, guid: 77068e10909e49b439333f36a472a217, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
@@ -22,19 +22,13 @@ Material:
   m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
-    m_TexEnvs:
-    - _TexA:
-        m_Texture: {fileID: 2800000, guid: 79c352cc7647ea745ba39781f8b9dd03, type: 3}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - _TexB:
-        m_Texture: {fileID: 2800000, guid: e41e89d5c97118546bc860c320691b3c, type: 3}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
+    m_TexEnvs: []
     m_Ints: []
     m_Floats:
-    - _BlendSharpness: 0.25
-    - _BlendT: 0.5
-    m_Colors: []
+    - _Intensity: 2
+    - _Scale: 0.1
+    m_Colors:
+    - _FastColor: {r: 1, g: 0, b: 0, a: 1}
+    - _SlowColor: {r: 0, g: 0.5, b: 1, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

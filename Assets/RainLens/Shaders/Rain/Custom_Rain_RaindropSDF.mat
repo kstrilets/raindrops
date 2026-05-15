@@ -34,7 +34,7 @@ Material:
     - _EdgeSoftness: 1.5
     - _FresnelPower: 3.5
     - _FresnelStrength: 0.85
-    - _GravityFlattening: 0.16
+    - _GravityFlattening: 1.6
     - _IOR: 1.333
     - _LensThickness: 0.55
     - _LightDirX: -0.35
